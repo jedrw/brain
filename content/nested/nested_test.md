@@ -1,4 +1,11 @@
-# Nested test
+---
+Title: Nested test
+Tags:
+  - test
+  - pickle
+---
+
+# Some things
 
 A list:
 

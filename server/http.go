@@ -1,8 +1,8 @@
 package server
 
 import (
-	"bytes"
 	_ "embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,8 +11,6 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/jedrw/brain/brainfile"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
 )
 
 //go:embed templates/main.html
@@ -32,7 +30,7 @@ func populateSidebar(sb *strings.Builder, nodes []*brainfile.Brainfile, currentP
 	for _, n := range nodes {
 		if n.IsDir {
 			sb.WriteString(`<li>`)
-			fmt.Fprintf(sb, "<span class=\"has-text-weight-bold\">%s</span>", n.Name)
+			fmt.Fprintf(sb, "<span class=\"has-text-weight-bold\">%s</span>", n.Title)
 			if len(n.Children) > 0 {
 				sb.WriteString(`<ul>`)
 				populateSidebar(sb, n.Children, currentPath)
@@ -45,9 +43,53 @@ func populateSidebar(sb *strings.Builder, nodes []*brainfile.Brainfile, currentP
 			if "/"+href == currentPath {
 				class = ` class="is-active"`
 			}
-			fmt.Fprintf(sb, `<li><a href="/%s"%s>%s</a></li>`, href, class, n.Name)
+			fmt.Fprintf(sb, `<li><a href="/%s"%s>%s</a></li>`, href, class, n.Title)
 		}
 	}
+}
+
+func getBrainfiles(rootDir, currentPath string) ([]*brainfile.Brainfile, error) {
+	fullPath := filepath.Join(rootDir, currentPath)
+	entries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var nodes []*brainfile.Brainfile
+	for _, entry := range entries {
+		relPath := filepath.Join(currentPath, entry.Name())
+		var node brainfile.Brainfile
+		if entry.IsDir() {
+			node = brainfile.Brainfile{
+				Title: strings.TrimSuffix(entry.Name(), ".md"),
+				Path:  relPath,
+				IsDir: entry.IsDir(),
+			}
+
+			children, err := getBrainfiles(rootDir, relPath)
+			if err != nil {
+				return nil, err
+			}
+
+			node.Children = children
+		} else {
+			path := filepath.Join(rootDir, relPath)
+			node, err = brainfile.NewFromFile(path)
+			if err != nil {
+				if errors.Is(err, brainfile.ErrInvalidBrainfile) {
+					log.Warn("invalid brainfile", "path", path)
+					continue
+				}
+
+				return nil, err
+			}
+
+			node.Path = relPath
+		}
+
+		nodes = append(nodes, &node)
+	}
+	return nodes, nil
 }
 
 type HTTPHandler struct {
@@ -68,44 +110,34 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filePath := filepath.Join(h.Dir, strings.TrimPrefix(cleanPath, "/")+".md")
-	data, err := os.ReadFile(filePath)
+	file, err := brainfile.NewFromFile(filePath)
 	if err != nil {
+		log.Error(err)
 		if os.IsNotExist(err) {
 			http.NotFound(w, r)
 			return
 		}
 
-		log.Error("error reading file:", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	md := goldmark.New(goldmark.WithExtensions(extension.Typographer))
-	var buf bytes.Buffer
-	if err := md.Convert(data, &buf); err != nil {
-		log.Error("failed to convert markdown:", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// TODO title stuff
-	rawtitle := bytes.SplitN(data, []byte("\n"), 2)[0]
-	title := bytes.TrimLeft(rawtitle, "# ")
-	files, err := brainfile.GetAll(h.Dir, "")
+	files, err := getBrainfiles(h.Dir, "")
 	if err != nil {
+		log.Error(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 
 	sidebar := buildSidebar(files, cleanPath)
-	html := fmt.Sprintf(pageTemplate, title, sidebar, buf.String())
+	html := fmt.Sprintf(pageTemplate, file.Title, sidebar, file.Content)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(html))
 }
 
-func NewHttpServer() *http.Server {
+func NewHttpServer(contentDir string) *http.Server {
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/styles/", http.StripPrefix("/styles/", http.FileServer(http.Dir("./styles"))))
-	httpMux.Handle("/", &HTTPHandler{Dir: "./content"})
+	httpMux.Handle("/", &HTTPHandler{Dir: contentDir})
 	httpServer := &http.Server{
 		Handler: httpMux,
 	}

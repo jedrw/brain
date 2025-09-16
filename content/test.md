@@ -1,4 +1,11 @@
-# This is a test
+---
+Title: Test
+Tags:
+  - test
+  - sausage
+---
+
+# A very nice heading
 
 A list:
 

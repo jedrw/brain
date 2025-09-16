@@ -1,47 +1,86 @@
 package brainfile
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/yuin/goldmark"
+	meta "github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+)
+
+var markdownParser = goldmark.New(
+	goldmark.WithExtensions(
+		extension.Typographer,
+		meta.New(),
+	),
 )
 
 type Brainfile struct {
 	Title    string
-	Name     string
-	Path     string // relative path from rootDir, used for reading URLs/files
+	Tags     []string
+	Content  []byte
+	Path     string
 	IsDir    bool
 	Children []*Brainfile
 }
 
-func GetAll(rootDir, currentPath string) ([]*Brainfile, error) {
-	fullPath := filepath.Join(rootDir, currentPath)
-	entries, err := os.ReadDir(fullPath)
+var ErrInvalidBrainfile = errors.New("invalid brainfile")
+
+func NewFromFile(path string) (Brainfile, error) {
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return Brainfile{}, err
 	}
 
-	var nodes []*Brainfile
-	for _, entry := range entries {
-		entryPath := filepath.Join(currentPath, entry.Name())
-		name := strings.TrimSuffix(entry.Name(), ".md")
-		node := &Brainfile{
-			Name:  name,
-			Path:  entryPath,
-			IsDir: entry.IsDir(),
-			Title: "", // TODO: parse file for title
-		}
+	context := parser.NewContext()
+	var buf bytes.Buffer
+	err = markdownParser.Convert(
+		fileBytes,
+		&buf,
+		parser.WithContext(context),
+	)
+	if err != nil {
+		return Brainfile{}, fmt.Errorf("%w: %s", ErrInvalidBrainfile, err)
+	}
 
-		if entry.IsDir() {
-			children, err := GetAll(rootDir, entryPath)
-			if err != nil {
-				return nil, err
+	brainfile := Brainfile{
+		Content: buf.Bytes(),
+		IsDir:   false,
+	}
+
+	metadata := meta.Get(context)
+	v, ok := metadata["Title"]
+	if !ok {
+		return brainfile, fmt.Errorf("%w: brainfile must contain Title frontmatter", ErrInvalidBrainfile)
+	}
+
+	brainfile.Title, ok = v.(string)
+	if !ok {
+		return brainfile, fmt.Errorf("%w: rainfile Title frontmatter must be a string", ErrInvalidBrainfile)
+	}
+
+	tagsRaw, ok := metadata["Tags"]
+	var tags []string
+	if ok {
+		if s, ok := tagsRaw.([]string); ok {
+			tags = s
+		} else if sIface, ok := tagsRaw.([]any); ok {
+			for _, e := range sIface {
+				if str, ok := e.(string); ok {
+					tags = append(tags, str)
+				}
 			}
-			node.Children = children
 		}
-
-		nodes = append(nodes, node)
 	}
 
-	return nodes, nil
+	for _, tag := range tags {
+		brainfile.Tags = append(brainfile.Tags, strings.TrimSpace(tag))
+	}
+
+	return brainfile, nil
 }
