@@ -61,7 +61,7 @@ func NewFromFile(path string) (Brainfile, error) {
 
 	brainfile.Title, ok = v.(string)
 	if !ok {
-		return brainfile, fmt.Errorf("%w: rainfile Title frontmatter must be a string", ErrInvalidBrainfile)
+		return brainfile, fmt.Errorf("%w: brainfile Title frontmatter must be a string", ErrInvalidBrainfile)
 	}
 
 	tagsRaw, ok := metadata["Tags"]

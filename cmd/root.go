@@ -12,7 +12,7 @@ var port int
 var rootCmd = &cobra.Command{
 	Use:   "brain [command]",
 	Short: "Brain store",
-	Args:  cobra.NoArgs,
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		// TODO read config for host
 		if address == "" {
@@ -29,7 +29,8 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 8080, "Port to listen on")
-	rootCmd.Flags().StringVarP(&address, "address", "a", "", "Brain host address")
+	rootCmd.PersistentFlags().StringVarP(&address, "address", "a", "", "Brain host address")
 	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(newCmd)
 	cobra.EnableCommandSorting = false
 }
