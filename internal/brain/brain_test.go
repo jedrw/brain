@@ -1,12 +1,13 @@
-package brainfile
+package brain
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
 
 func TestFromFile(t *testing.T) {
-	expected := Brainfile{
+	expected := Node{
 		Title: "Test",
 		Tags:  []string{"test", "sausage"},
 		Content: []byte{
@@ -14,12 +15,17 @@ func TestFromFile(t *testing.T) {
 		},
 	}
 
-	brainfile, err := NewFromFile("../content/test.md")
+	fileBytes, err := os.ReadFile("../content/test.md")
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(expected, brainfile) {
-		t.Errorf("expected\n%+v\n got:\n%+v", expected, brainfile)
+	node, err := NewNodeFromBytes(fileBytes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(expected, node) {
+		t.Errorf("expected\n%+v\n got:\n%+v", expected, node)
 	}
 }

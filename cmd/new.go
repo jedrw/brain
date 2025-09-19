@@ -6,21 +6,26 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"path"
 	"strconv"
 
-	"github.com/jedrw/brain/server"
+	"github.com/jedrw/brain/internal/brain"
+	"github.com/jedrw/brain/internal/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
 )
 
-// TODO make this better, read from config?
-func publicKeyAuth() (ssh.AuthMethod, error) {
-	keyPath := filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa")
+// TODO: read from config?
+func publicKeyAuth(keyPath string) (ssh.AuthMethod, error) {
+	if keyPath == "" {
+		keyPath = path.Join(os.Getenv("HOME"), ".ssh", "id_rsa")
+	}
+
 	buf, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
+
 	signer, err := ssh.ParsePrivateKey(buf)
 	if err != nil {
 		return nil, err
@@ -35,45 +40,44 @@ var newCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			// TODO prompt for name
-			return errors.New("not implimented")
+			return errors.New("not implimented: prompt for name")
 		}
 
-		newFileName := args[0]
-		editor, editorSet := os.LookupEnv("EDITOR")
-		if !editorSet {
-			editor = "nano"
+		config, err := config.New(configPath, cmd.Flags())
+		if err != nil {
+			return err
 		}
 
 		// TODO: save to tempfile first, and use this for editing, cleanup after.
-		editorArgs := []string{}
-		if editor == "code" {
-			editorArgs = append(editorArgs, "--wait")
+		newFilePath := args[0]
+		newFileName := path.Base(newFilePath)
+		editor, editorSet := os.LookupEnv("EDITOR")
+		if !editorSet {
+			editor = "vi"
 		}
-		editorArgs = append(editorArgs, newFileName)
-		editorCmd := exec.Command(editor, editorArgs...)
 
+		editorCmd := exec.Command(editor, newFileName)
 		editorCmd.Stdout = os.Stdout
 		editorCmd.Stderr = os.Stderr
 		editorCmd.Stdin = os.Stdin
-		err := editorCmd.Run()
+		err = editorCmd.Run()
 		if err != nil {
 			return err
 		}
 
-		authMethod, err := publicKeyAuth()
+		authMethod, err := publicKeyAuth(config.KeyPath)
 		if err != nil {
 			return err
 		}
 
-		config := &ssh.ClientConfig{
+		conConfig := &ssh.ClientConfig{
 			Auth: []ssh.AuthMethod{authMethod},
 			// TODO: use ssh.FixedHostKey, read Hostkey from config
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
 
-		remote := net.JoinHostPort(address, strconv.Itoa(port))
-		con, err := ssh.Dial("tcp", remote, config)
+		remote := net.JoinHostPort(config.Address, strconv.Itoa(config.Port))
+		con, err := ssh.Dial("tcp", remote, conConfig)
 		if err != nil {
 			return err
 		}
@@ -91,12 +95,12 @@ var newCmd = &cobra.Command{
 		defer f.Close()
 
 		sess.Stdin = f
-		out, err := sess.CombinedOutput(fmt.Sprintf("%s %s", server.UPLOAD, newFileName))
+		out, err := sess.CombinedOutput(fmt.Sprintf("%s %s", brain.UPLOAD, newFilePath))
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(string(out))
+		fmt.Print(string(out))
 		return nil
 	},
 }

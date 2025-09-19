@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 
+	"github.com/jedrw/brain/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -28,8 +29,9 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 8080, "Port to listen on")
-	rootCmd.PersistentFlags().StringVarP(&address, "address", "a", "", "Brain host address")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "", "Path to config file")
+	rootCmd.PersistentFlags().IntVarP(&port, config.PortFlag, "p", 8080, "Port to listen on")
+	rootCmd.PersistentFlags().StringVarP(&address, config.AddressFlag, "a", "", "Brain host address")
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(newCmd)
 	cobra.EnableCommandSorting = false
