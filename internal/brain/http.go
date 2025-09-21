@@ -4,8 +4,6 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
-	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -63,34 +61,26 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO: generate contents page
 	if cleanPath == "/" {
 		cleanPath = "/index"
-		log.Info("TODO: generate contents page")
+		log.Error("TODO: generate contents page")
+		http.NotFound(w, r)
+		return
 	}
 
-	file, err := NewNodeFromFile(path.Join(h.brain.config.ContentDir, strings.TrimPrefix(cleanPath, "/")+".md"))
+	node, err := h.brain.tree.Find(cleanPath)
 	if err != nil {
-		log.Error(err)
-		if os.IsNotExist(err) {
+		if err == ErrNotExist {
+			log.Warn(err, "path", cleanPath)
 			http.NotFound(w, r)
 			return
 		}
 
+		log.Warn(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	sidebar := buildSidebar(h.brain, cleanPath)
-	html := fmt.Sprintf(pageTemplate, file.Title, sidebar, file.Content)
+	html := fmt.Sprintf(pageTemplate, node.Title, sidebar, node.Content)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(html))
-}
-
-func NewHttpServer(b *Brain) *http.Server {
-	httpMux := http.NewServeMux()
-	httpMux.Handle("/styles/", http.StripPrefix("/styles/", http.FileServer(http.Dir("./styles"))))
-	httpMux.Handle("/", &HTTPHandler{brain: b})
-	httpServer := &http.Server{
-		Handler: httpMux,
-	}
-
-	return httpServer
 }

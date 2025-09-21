@@ -7,31 +7,16 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
 
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/cockroachdb/cmux"
 	"github.com/jedrw/brain/internal/config"
+	"github.com/jedrw/brain/internal/server"
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
 )
-
-type Node struct {
-	Title    string
-	Tags     []string
-	Raw      []byte
-	Content  []byte
-	Path     string
-	IsDir    bool
-	Children []*Node
-}
-
-type Tree struct {
-	mu    sync.RWMutex
-	nodes []*Node
-}
 
 type Brain struct {
 	config     config.Config
@@ -44,8 +29,8 @@ type Brain struct {
 
 var (
 	ErrInvalidBrainNode = errors.New("invalid brain node")
-
-	markdownParser = goldmark.New(
+	ErrNotExist         = errors.New("node does not exist")
+	markdownParser      = goldmark.New(
 		goldmark.WithExtensions(
 			extension.Typographer,
 			meta.New(),
@@ -119,7 +104,7 @@ func (b *Brain) Serve() error {
 
 	}()
 
-	b.httpServer = NewHttpServer(b)
+	b.httpServer = server.NewHttpServer(&HTTPHandler{brain: b})
 	go func() {
 		log.Info("starting http server")
 		if err := b.httpServer.Serve(httpListener); err != nil && err != http.ErrServerClosed {
@@ -129,7 +114,11 @@ func (b *Brain) Serve() error {
 	}()
 
 	if !b.config.NoSSH {
-		b.sshServer, err = NewSSHServer(b)
+		b.sshServer, err = server.NewSSHServer(
+			b.config.HostKeyPath,
+			b.config.AuthorizedKeys,
+			b.sshHandler,
+		)
 		if err != nil {
 			log.Fatal(err)
 		}

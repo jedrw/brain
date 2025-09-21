@@ -14,12 +14,22 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
-func NewNodeFromBytes(b []byte) (Node, error) {
+type Node struct {
+	Title    string
+	Tags     []string
+	Raw      []byte
+	Content  []byte
+	Path     string
+	IsDir    bool
+	Children []*Node
+}
+
+func NewNodeFromBytes(data []byte) (Node, error) {
 	context := parser.NewContext()
-	var buf bytes.Buffer
+	var htmlBytes bytes.Buffer
 	err := markdownParser.Convert(
-		b,
-		&buf,
+		data,
+		&htmlBytes,
 		parser.WithContext(context),
 	)
 	if err != nil {
@@ -27,8 +37,8 @@ func NewNodeFromBytes(b []byte) (Node, error) {
 	}
 
 	node := Node{
-		Raw:     b,
-		Content: buf.Bytes(),
+		Raw:     data,
+		Content: htmlBytes.Bytes(),
 		IsDir:   false,
 	}
 
@@ -73,11 +83,13 @@ func NewNodeFromFile(filePath string) (Node, error) {
 	return NewNodeFromBytes(fileBytes)
 }
 
+// Make this a Tree method?
 func getNodes(baseDir, currentPath string) ([]*Node, error) {
 	entries, err := os.ReadDir(path.Join(baseDir, currentPath))
 	if err != nil {
 		return nil, err
 	}
+
 	var nodes []*Node
 	for _, entry := range entries {
 		relPath := filepath.Join(currentPath, entry.Name())
