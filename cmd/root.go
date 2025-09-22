@@ -34,5 +34,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&address, config.AddressFlag, "a", "", "Brain host address")
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(newCmd)
+	rootCmd.AddCommand(listCmd)
 	cobra.EnableCommandSorting = false
 }

@@ -23,14 +23,14 @@ var serverCmd = &cobra.Command{
 	Short: "Brain server",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		brainConfig, err := config.New(configPath, cmd.Flags())
+		config, err := config.New(configPath, cmd.Flags())
 		if err != nil {
 			return err
 		}
 
 		ctx, cancel := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 		defer cancel()
-		brain, err := brain.NewBrain(ctx, brainConfig)
+		brain, err := brain.NewBrain(ctx, config)
 		if err != nil {
 			return err
 		}
