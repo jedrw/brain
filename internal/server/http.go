@@ -57,7 +57,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func NewHttpServer(handler http.Handler) *http.Server {
 	httpMux := http.NewServeMux()
-	httpMux.Handle("/styles/", http.StripPrefix("/styles/", http.FileServer(http.Dir("./styles"))))
 	httpMux.Handle("/", loggingMiddleware(handler))
 	httpServer := &http.Server{
 		Handler: httpMux,
