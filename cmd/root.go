@@ -7,16 +7,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var address string
-var port int
+var (
+	brainConfig    config.Config
+	configPath     string
+	address        string
+	port           int
+	contentDir     string
+	hostKeyPath    string
+	authorizedKeys string
+	keyPath        string
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "brain [command]",
-	Short: "Brain store",
+	Short: "Brainfiles",
 	Args:  cobra.ArbitraryArgs,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		var err error
+		brainConfig, err = config.New(configPath, cmd.Flags())
+
+		return err
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// TODO read config for host
-		if address == "" {
+		if brainConfig.Address == "" {
 			return errors.New("set host address with -a flag or configure in config")
 		}
 
@@ -30,10 +43,10 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "", "Path to config file")
-	rootCmd.PersistentFlags().IntVarP(&port, config.PortFlag, "p", 8080, "Port to listen on")
-	rootCmd.PersistentFlags().StringVarP(&address, config.AddressFlag, "a", "", "Brain host address")
+	rootCmd.PersistentFlags().IntVarP(&port, config.PortFlag, "p", config.PortDefault, "Port to listen on")
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(editCmd)
 	cobra.EnableCommandSorting = false
 }

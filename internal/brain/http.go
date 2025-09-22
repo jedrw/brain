@@ -66,7 +66,7 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	node, err := h.brain.tree.Find(cleanPath)
+	node, err := h.brain.tree.Find(cleanPath + ".md")
 	if err != nil {
 		if err == ErrNotExist {
 			log.Warn(err, "path", cleanPath)

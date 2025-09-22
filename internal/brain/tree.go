@@ -27,17 +27,9 @@ func (t *Tree) Find(path string) (*Node, error) {
 		found = nil
 		for _, n := range currentLevel {
 			base := filepath.Base(n.Path)
-
-			if n.IsDir {
-				if base == part {
-					found = n
-					break
-				}
-			} else {
-				if base == part+".md" {
-					found = n
-					break
-				}
+			if base == part {
+				found = n
+				break
 			}
 		}
 
@@ -46,6 +38,10 @@ func (t *Tree) Find(path string) (*Node, error) {
 		}
 
 		currentLevel = found.Children
+	}
+
+	if found.IsDir {
+		return found, ErrNodeIsDir
 	}
 
 	return found, nil

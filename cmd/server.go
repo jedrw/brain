@@ -11,16 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	configPath     string
-	contentDir     string
-	hostKeyPath    string
-	authorizedKeys string
-)
-
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Brain server",
+	Short: "Brainfiles server",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		config, err := config.New(configPath, cmd.Flags())
@@ -49,7 +42,7 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
-	serverCmd.Flags().StringVarP(&contentDir, config.ContentDirFlag, "d", "./content", "Path to content dir")
-	serverCmd.Flags().StringVarP(&hostKeyPath, config.HostKeyPathFlag, "k", "./id_ed25519", "Path to host key")
+	serverCmd.Flags().StringVarP(&contentDir, config.ContentDirFlag, "d", config.ContentDirDefault, "Path to content dir")
+	serverCmd.Flags().StringVarP(&hostKeyPath, config.HostKeyPathFlag, "k", config.HostKeyPathDefault, "Path to host key")
 	serverCmd.Flags().StringVarP(&authorizedKeys, config.AuthorizedKeysFlag, "z", "", "Authorized keys (comma separated)")
 }

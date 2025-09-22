@@ -13,13 +13,8 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List brainfiles",
 	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		config, err := config.New(configPath, cmd.Flags())
-		if err != nil {
-			return err
-		}
-
-		client, err := client.NewSSHClient(config)
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		client, err := client.NewSSHClient(brainConfig)
 		if err != nil {
 			return err
 		}
@@ -33,4 +28,9 @@ var listCmd = &cobra.Command{
 		fmt.Print(out)
 		return nil
 	},
+}
+
+func init() {
+	listCmd.Flags().StringVarP(&address, config.AddressFlag, "a", config.AddressDefault, "Brain host address")
+	listCmd.Flags().StringVarP(&keyPath, config.KeyPathFlag, "i", config.KeyPathDefault, "Key path")
 }

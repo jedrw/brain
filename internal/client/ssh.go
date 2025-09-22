@@ -13,8 +13,7 @@ import (
 )
 
 type sshClient struct {
-	con     *ssh.Client
-	session *ssh.Session
+	con *ssh.Client
 }
 
 func publicKeyAuth(keyPath string) (ssh.AuthMethod, error) {
@@ -53,14 +52,8 @@ func NewSSHClient(config config.Config) (*sshClient, error) {
 		return nil, err
 	}
 
-	sess, err := con.NewSession()
-	if err != nil {
-		return nil, err
-	}
-
 	return &sshClient{
-		con:     con,
-		session: sess,
+		con: con,
 	}, nil
 }
 
@@ -69,11 +62,16 @@ func (c *sshClient) Close() error {
 }
 
 func (c *sshClient) RunCommand(command string, in io.Reader, args ...string) (string, error) {
-	if in != nil {
-		c.session.Stdin = in
+	sess, err := c.con.NewSession()
+	if err != nil {
+		return "", err
 	}
 
-	out, err := c.session.Output(strings.Join(append([]string{command}, args...), " "))
+	if in != nil {
+		sess.Stdin = in
+	}
+
+	out, err := sess.Output(strings.Join(append([]string{command}, args...), " "))
 	if err != nil {
 		return string(out), err
 	}

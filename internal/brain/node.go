@@ -2,6 +2,7 @@ package brain
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,9 @@ import (
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/parser"
 )
+
+//go:embed templates/brainfile.md
+var BrainfileTemplate []byte
 
 type Node struct {
 	Title    string
@@ -45,12 +49,16 @@ func NewNodeFromBytes(data []byte) (Node, error) {
 	metadata := meta.Get(context)
 	v, ok := metadata["Title"]
 	if !ok {
-		return node, fmt.Errorf("%w: brain node must contain Title frontmatter", ErrInvalidBrainNode)
+		return node, fmt.Errorf("%w: brainfile must contain Title frontmatter", ErrInvalidBrainNode)
 	}
 
 	node.Title, ok = v.(string)
 	if !ok {
-		return node, fmt.Errorf("%w: brain node Title frontmatter must be a string", ErrInvalidBrainNode)
+		return node, fmt.Errorf("%w: brainfile Title must be a string", ErrInvalidBrainNode)
+	}
+
+	if node.Title == "" {
+		return node, fmt.Errorf("%w: brainfile Title must not be an empty string", ErrInvalidBrainNode)
 	}
 
 	tagsRaw, ok := metadata["Tags"]

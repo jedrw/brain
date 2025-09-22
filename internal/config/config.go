@@ -12,12 +12,23 @@ import (
 )
 
 const (
+	// Flags
 	AddressFlag        = "address"
 	PortFlag           = "port"
 	ContentDirFlag     = "content-dir"
 	HostKeyPathFlag    = "host-key-path"
 	AuthorizedKeysFlag = "authorized-keys"
+	KeyPathFlag        = "key-path"
+
+	// Defaults
+	ContentDirDefault     = "./content"
+	HostKeyPathDefault    = "./id_ed25519"
+	AuthorizedKeysDefault = ""
+	AddressDefault        = ""
+	PortDefault           = 8080
 )
+
+var KeyPathDefault = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
 
 type Config struct {
 	Address        string   `yaml:"address"`
@@ -63,6 +74,10 @@ func (c *Config) setOverrides(flags *pflag.FlagSet) {
 		for key := range keys {
 			c.AuthorizedKeys = append(c.AuthorizedKeys, strings.TrimSpace(key))
 		}
+	}
+
+	if c.KeyPath == "" || isFlagSet(KeyPathFlag) {
+		c.KeyPath, _ = flags.GetString(KeyPathFlag)
 	}
 }
 

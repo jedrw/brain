@@ -1,40 +1,52 @@
 package cmd
 
 import (
-	"errors"
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
-	"path"
+	"strings"
 
 	"github.com/jedrw/brain/internal/brain"
 	"github.com/jedrw/brain/internal/client"
 	"github.com/jedrw/brain/internal/config"
+	"github.com/jedrw/brain/internal/editor"
 	"github.com/spf13/cobra"
 )
+
+var file string
 
 var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "New brainfile",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var filePath string
 		if len(args) == 0 {
-			return errors.New("not implimented: prompt for name")
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("Enter name: ")
+			name, _ := reader.ReadString('\n')
+			filePath = name
+		} else {
+			filePath = args[0]
 		}
 
-		// TODO: save to tempfile first, and use this for editing, cleanup after.
-		newFilePath := args[0]
-		newFileName := path.Base(newFilePath)
-		editor, editorSet := os.LookupEnv("EDITOR")
-		if !editorSet {
-			editor = "vi"
+		inputFile, err := cmd.Flags().GetString("file")
+		if err != nil {
+			return err
 		}
 
-		editorCmd := exec.Command(editor, newFileName)
-		editorCmd.Stdout = os.Stdout
-		editorCmd.Stderr = os.Stderr
-		editorCmd.Stdin = os.Stdin
-		err := editorCmd.Run()
+		var initialContent []byte
+		if inputFile != "" {
+			initialContent, err = os.ReadFile(inputFile)
+			if err != nil {
+				return err
+			}
+		} else {
+			initialContent = brain.BrainfileTemplate
+		}
+
+		newBytes, tempFilePath, err := editor.New(filePath, initialContent)
 		if err != nil {
 			return err
 		}
@@ -50,18 +62,24 @@ var newCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		f, err := os.Open(newFileName)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		out, err := client.RunCommand(brain.NEW, f, newFilePath)
+		out, err := client.RunCommand(brain.NEW, bytes.NewReader(newBytes), filePath)
 		if err != nil {
 			return err
 		}
 
-		fmt.Print(string(out))
+		fmt.Print(out)
+		if strings.Contains(out, brain.ErrInvalidBrainNode.Error()) {
+			fmt.Printf("temp brainfile saved at: %s\n", tempFilePath)
+		} else {
+			os.Remove(tempFilePath)
+		}
+
 		return nil
 	},
+}
+
+func init() {
+	newCmd.Flags().StringVarP(&address, config.AddressFlag, "a", config.AddressDefault, "Brain host address")
+	newCmd.Flags().StringVarP(&keyPath, config.KeyPathFlag, "i", config.KeyPathDefault, "Key path")
+	newCmd.Flags().StringVarP(&file, "file", "f", "", "File")
 }

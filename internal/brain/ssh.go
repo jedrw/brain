@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/ssh"
@@ -12,8 +13,9 @@ import (
 )
 
 const (
-	NEW  string = "upload"
+	NEW  string = "new"
 	LIST string = "list"
+	EDIT string = "edit"
 )
 
 func listNodes(sb *strings.Builder, nodes []*Node) {
@@ -33,6 +35,11 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 			switch s.Command()[0] {
 			case NEW:
 				relPath := s.Command()[1]
+				if !strings.HasSuffix(relPath, ".md") {
+					wish.Println(s, "ERROR: brainfile path must end with \".md\"")
+					return
+				}
+
 				data, err := io.ReadAll(s)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
@@ -58,13 +65,24 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				}
 
 				b.updater <- struct{}{}
-				wish.Printf(s, "saved %s\n", relPath)
+				wish.Printf(s, "OK: saved %s\n", relPath)
 				return
 
 			case LIST:
 				sb := &strings.Builder{}
 				listNodes(sb, b.tree.nodes)
 				wish.Print(s, sb)
+
+			case EDIT:
+				relPath := filepath.Clean(s.Command()[1])
+				node, err := b.tree.Find(relPath)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s: %s", err, relPath)
+					return
+				}
+
+				wish.Print(s, string(node.Raw))
+				return
 			}
 		}
 		next(s)

@@ -30,6 +30,7 @@ type Brain struct {
 var (
 	ErrInvalidBrainNode = errors.New("invalid brain node")
 	ErrNotExist         = errors.New("node does not exist")
+	ErrNodeIsDir        = errors.New("node is directory")
 	markdownParser      = goldmark.New(
 		goldmark.WithExtensions(
 			extension.Typographer,
