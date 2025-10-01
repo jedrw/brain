@@ -35,4 +35,6 @@ go.work.sum
 id_ed25519
 id_ed25519.pub
 
+docs
+site
 config.yaml

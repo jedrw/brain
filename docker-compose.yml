@@ -1,0 +1,23 @@
+services:
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./site:/usr/share/nginx/html
+    ports:
+      - "80:80"
+    depends_on:
+      - brain
+    restart: "unless-stopped"
+  brain:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - 2222:2222
+    volumes:
+      - ./mkdocs.yaml:/brain/mkdocs.yaml
+      - ./config.yaml:/brain/config.yaml
+      - ./docs:/brain/docs
+      - ./site:/brain/site
+      - ./id_ed25519:/brain/id_ed25519
+      - ./id_ed25519.pub:/brain/id_ed25519.pub
+    restart: "unless-stopped"

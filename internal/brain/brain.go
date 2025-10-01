@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
+	"os/exec"
 
+	"github.com/anmitsu/go-shlex"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/cockroachdb/cmux"
@@ -19,12 +20,11 @@ import (
 )
 
 type Brain struct {
-	config     config.Config
-	ctx        context.Context
-	tree       *Tree
-	updater    chan<- struct{}
-	httpServer *http.Server
-	sshServer  *ssh.Server
+	config    config.Config
+	ctx       context.Context
+	tree      *Tree
+	updater   chan<- struct{}
+	sshServer *ssh.Server
 }
 
 var (
@@ -81,6 +81,22 @@ func (b *Brain) Updater() chan<- struct{} {
 				if err != nil {
 					log.Fatal(fmt.Sprintf("could not update brain tree: %s", err))
 				}
+
+				for _, fnString := range b.config.UpdateTasks {
+					fnArgs, err := shlex.Split(fnString, true)
+					if err != nil {
+						log.Warnf("failed to parse updater task: %s", err)
+						continue
+					}
+
+					fn := exec.Command(fnArgs[0], fnArgs[1:]...)
+					output, err := fn.CombinedOutput()
+					if err != nil {
+						log.Warnf("failed to run updater task: %s\n%s", err, string(output))
+					}
+
+					log.Info("ran updater task. ")
+				}
 			}
 		}
 	}()
@@ -95,61 +111,33 @@ func (b *Brain) Serve() error {
 	}
 
 	log.Info(fmt.Sprintf("opened listener on port: %d", b.config.Port))
-	mux := cmux.New(listener)
-	sshListener := mux.Match(cmux.PrefixMatcher("SSH-"))
-	httpListener := mux.Match(cmux.Any())
-	go func() {
-		if err := mux.Serve(); err != nil && !errors.Is(err, cmux.ErrListenerClosed) && !errors.Is(err, net.ErrClosed) {
-			log.Fatal(err)
-		}
 
-	}()
-
-	b.httpServer = server.NewHttpServer(&HTTPHandler{brain: b})
-	go func() {
-		log.Info("starting http server")
-		if err := b.httpServer.Serve(httpListener); err != nil && err != http.ErrServerClosed {
-			log.Info("error from http serve")
-			log.Fatal(err)
-		}
-	}()
-
-	if !b.config.NoSSH {
-		b.sshServer, err = server.NewSSHServer(
-			b.config.HostKeyPath,
-			b.config.AuthorizedKeys,
-			b.sshHandler,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		go func() {
-			log.Info("starting ssh server")
-			if err := b.sshServer.Serve(sshListener); err != nil && err != ssh.ErrServerClosed && !errors.Is(err, cmux.ErrListenerClosed) {
-				log.Info("error from ssh serve")
-				log.Fatal(err)
-			}
-		}()
+	b.sshServer, err = server.NewSSHServer(
+		b.config.HostKeyPath,
+		b.config.AuthorizedKeys,
+		b.sshHandler,
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	go func() {
+		log.Info("starting ssh server")
+		if err := b.sshServer.Serve(listener); err != nil && err != ssh.ErrServerClosed && !errors.Is(err, cmux.ErrListenerClosed) {
+			log.Info("error from ssh server")
+			log.Fatal(err)
+		}
+	}()
 
 	return nil
 }
 
 func (b *Brain) Shutdown(ctx context.Context) error {
-	log.Info("shutting down http server")
-	err := b.httpServer.Shutdown(ctx)
-	if err != nil && err != http.ErrServerClosed {
+	log.Info("shutting down ssh server")
+	err := b.sshServer.Shutdown(ctx)
+	if err != nil && err != ssh.ErrServerClosed && !errors.Is(err, net.ErrClosed) {
+		log.Info("error from ssh shutdown")
 		return err
-	}
-
-	if !b.config.NoSSH && b.sshServer != nil {
-		log.Info("shutting down ssh server")
-		err = b.sshServer.Shutdown(ctx)
-		if err != nil && err != ssh.ErrServerClosed && !errors.Is(err, net.ErrClosed) {
-			log.Info("error from ssh shutdown")
-			return err
-		}
 	}
 
 	return nil

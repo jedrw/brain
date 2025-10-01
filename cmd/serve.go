@@ -12,8 +12,8 @@ import (
 )
 
 var serverCmd = &cobra.Command{
-	Use:   "server",
-	Short: "Brainfiles server",
+	Use:   "serve",
+	Short: "Brainfiles serve",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		config, err := config.New(configPath, cmd.Flags())
@@ -35,8 +35,8 @@ var serverCmd = &cobra.Command{
 		}
 
 		<-ctx.Done()
-		shutdownCtx, shudownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer shudownCancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
 		return brain.Shutdown(shutdownCtx)
 	},
 }

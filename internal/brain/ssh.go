@@ -53,13 +53,15 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 					return
 				}
 
-				err = os.MkdirAll(path.Dir(path.Join(b.config.ContentDir, relPath)), 0770)
+				newFilePath := path.Join(b.config.ContentDir, relPath)
+				err = os.MkdirAll(path.Dir(newFilePath), 0770)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
 					return
 				}
 
-				if err := os.WriteFile(path.Join(b.config.ContentDir, relPath), data, 0644); err != nil {
+				err = os.WriteFile(newFilePath, data, 0644)
+				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
 					return
 				}

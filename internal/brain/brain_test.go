@@ -15,7 +15,7 @@ func TestFromFile(t *testing.T) {
 		},
 	}
 
-	fileBytes, err := os.ReadFile("../content/test.md")
+	fileBytes, err := os.ReadFile("../docs/test.md")
 	if err != nil {
 		t.Error(err)
 	}

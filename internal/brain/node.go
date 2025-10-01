@@ -47,7 +47,7 @@ func NewNodeFromBytes(data []byte) (Node, error) {
 	}
 
 	metadata := meta.Get(context)
-	v, ok := metadata["Title"]
+	v, ok := metadata["title"]
 	if !ok {
 		return node, fmt.Errorf("%w: brainfile must contain Title frontmatter", ErrInvalidBrainNode)
 	}
@@ -59,24 +59,6 @@ func NewNodeFromBytes(data []byte) (Node, error) {
 
 	if node.Title == "" {
 		return node, fmt.Errorf("%w: brainfile Title must not be an empty string", ErrInvalidBrainNode)
-	}
-
-	tagsRaw, ok := metadata["Tags"]
-	var tags []string
-	if ok {
-		if s, ok := tagsRaw.([]string); ok {
-			tags = s
-		} else if sIface, ok := tagsRaw.([]any); ok {
-			for _, e := range sIface {
-				if str, ok := e.(string); ok {
-					tags = append(tags, str)
-				}
-			}
-		}
-	}
-
-	for _, tag := range tags {
-		node.Tags = append(node.Tags, strings.TrimSpace(tag))
 	}
 
 	return node, nil

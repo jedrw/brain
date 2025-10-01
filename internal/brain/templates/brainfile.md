@@ -1,4 +1,3 @@
 ---
-Title: ""
-Tags: []
+title: ""
 ---

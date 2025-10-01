@@ -21,11 +21,11 @@ const (
 	KeyPathFlag        = "key-path"
 
 	// Defaults
-	ContentDirDefault     = "./content"
+	ContentDirDefault     = "./docs"
 	HostKeyPathDefault    = "./id_ed25519"
 	AuthorizedKeysDefault = ""
 	AddressDefault        = ""
-	PortDefault           = 8080
+	PortDefault           = 2222
 )
 
 var KeyPathDefault = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
@@ -36,8 +36,8 @@ type Config struct {
 	HostKeyPath    string   `yaml:"hostKeyPath"`
 	AuthorizedKeys []string `yaml:"authorizedKeys"`
 	KeyPath        string   `yaml:"keyPath"`
-	NoSSH          bool     `yaml:"noSSH"`
 	ContentDir     string   `yaml:"contentDir"`
+	UpdateTasks    []string `yaml:"updateTasks"`
 }
 
 func isFlagSet(name string) bool {
