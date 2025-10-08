@@ -110,7 +110,7 @@ jobs:
               STACK=production
             else
               echo "Stack does not exist for branch"
-              exit(1)
+              exit 1
             fi
             pulumi up --stack $STACK --yes
 
