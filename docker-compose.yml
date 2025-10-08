@@ -16,7 +16,7 @@ services:
     volumes:
       - ./mkdocs.yaml:/brain/mkdocs.yaml
       - ./config.yaml:/brain/config.yaml
-      - ./docs:/brain/docs
+      - ./example-docs:/brain/docs
       - ./site:/brain/site
       - ./id_ed25519:/brain/id_ed25519
       - ./id_ed25519.pub:/brain/id_ed25519.pub

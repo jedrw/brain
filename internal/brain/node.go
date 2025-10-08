@@ -49,16 +49,16 @@ func NewNodeFromBytes(data []byte) (Node, error) {
 	metadata := meta.Get(context)
 	v, ok := metadata["title"]
 	if !ok {
-		return node, fmt.Errorf("%w: brainfile must contain Title frontmatter", ErrInvalidBrainNode)
+		return node, fmt.Errorf("%w: brainfile must contain \"title\" frontmatter", ErrInvalidBrainNode)
 	}
 
 	node.Title, ok = v.(string)
 	if !ok {
-		return node, fmt.Errorf("%w: brainfile Title must be a string", ErrInvalidBrainNode)
+		return node, fmt.Errorf("%w: brainfile \"title\" must be a string", ErrInvalidBrainNode)
 	}
 
 	if node.Title == "" {
-		return node, fmt.Errorf("%w: brainfile Title must not be an empty string", ErrInvalidBrainNode)
+		return node, fmt.Errorf("%w: brainfile \"title\" must not be an empty string", ErrInvalidBrainNode)
 	}
 
 	return node, nil
