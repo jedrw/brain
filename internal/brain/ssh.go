@@ -8,14 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 )
 
 const (
-	NEW  string = "new"
-	LIST string = "list"
-	EDIT string = "edit"
+	NEW    string = "new"
+	LIST   string = "list"
+	EDIT   string = "edit"
+	MOVE   string = "move"
+	DELETE string = "delete"
 )
 
 func listNodes(sb *strings.Builder, nodes []*Node) {
@@ -24,7 +27,7 @@ func listNodes(sb *strings.Builder, nodes []*Node) {
 			fmt.Fprintf(sb, "%s\n", node.Path)
 			listNodes(sb, node.Children)
 		} else {
-			fmt.Fprintf(sb, "%s (%s)\n", node.Path, node.Title)
+			fmt.Fprintf(sb, "%s\n", node.Path)
 		}
 	}
 }
@@ -37,38 +40,37 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				relPath := s.Command()[1]
 				if !strings.HasSuffix(relPath, ".md") {
 					wish.Println(s, "ERROR: brainfile path must end with \".md\"")
-					return
+					break
 				}
 
 				data, err := io.ReadAll(s)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
-					return
+					break
 				}
 
 				// Validate the data
 				_, err = NewNodeFromBytes(data)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
-					return
+					break
 				}
 
 				newFilePath := path.Join(b.config.ContentDir, relPath)
 				err = os.MkdirAll(path.Dir(newFilePath), 0770)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
-					return
+					break
 				}
 
 				err = os.WriteFile(newFilePath, data, 0644)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
-					return
+					break
 				}
 
 				b.updater <- struct{}{}
 				wish.Printf(s, "OK: saved %s\n", relPath)
-				return
 
 			case LIST:
 				sb := &strings.Builder{}
@@ -79,12 +81,75 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				relPath := filepath.Clean(s.Command()[1])
 				node, err := b.tree.Find(relPath)
 				if err != nil {
-					wish.Printf(s, "ERROR: %s: %s", err, relPath)
-					return
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
 				}
 
 				wish.Print(s, string(node.Raw))
-				return
+
+			case MOVE:
+				fromPathRel := filepath.Clean(s.Command()[1])
+				toPathRel := filepath.Clean(s.Command()[2])
+				if fromPathRel == toPathRel {
+					wish.Printf(s, "OK: moved %s to %s\n", fromPathRel, toPathRel)
+					break
+				}
+
+				fromPath := path.Join(b.config.ContentDir, fromPathRel)
+				toPath := path.Join(b.config.ContentDir, toPathRel)
+
+				_, err := os.Stat(toPath)
+				if err == nil {
+					wish.Printf(s, "ERROR: %s already exists, move must be non-destructive\n", toPathRel)
+					b.updater <- struct{}{}
+					break
+				}
+
+				if !os.IsNotExist(err) {
+					log.Error(err)
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				fromNode, err := b.tree.Find(fromPathRel)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					b.updater <- struct{}{}
+					break
+				}
+
+				err = os.MkdirAll(path.Dir(toPath), 0770)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				err = os.WriteFile(toPath, fromNode.Raw, 0644)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				err = os.Remove(fromPath)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				b.updater <- struct{}{}
+				wish.Printf(s, "OK: moved %s to %s\n", fromPathRel, toPathRel)
+
+			case DELETE:
+				relPath := filepath.Clean(s.Command()[1])
+				path := path.Join(b.config.ContentDir, relPath)
+				err := os.Remove(path)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				b.updater <- struct{}{}
+				wish.Printf(s, "OK: deleted %s\n", relPath)
 			}
 		}
 		next(s)

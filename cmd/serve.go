@@ -13,7 +13,7 @@ import (
 
 var serverCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Brainfiles serve",
+	Short: "Brainfiles server",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		config, err := config.New(configPath, cmd.Flags())

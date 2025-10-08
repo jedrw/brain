@@ -15,7 +15,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
-//go:embed templates/brainfile.md
+//go:embed template/brainfile.md
 var BrainfileTemplate []byte
 
 type Node struct {

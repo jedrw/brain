@@ -26,9 +26,12 @@ const (
 	AuthorizedKeysDefault = ""
 	AddressDefault        = ""
 	PortDefault           = 2222
+	UpdateTaskDefault     = "mkdocs build"
 )
 
-var KeyPathDefault = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
+var (
+	KeyPathDefault = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
+)
 
 type Config struct {
 	Address        string   `yaml:"address"`
@@ -66,6 +69,10 @@ func (c *Config) setOverrides(flags *pflag.FlagSet) {
 
 	if c.HostKeyPath == "" || isFlagSet(HostKeyPathFlag) {
 		c.HostKeyPath, _ = flags.GetString(HostKeyPathFlag)
+	}
+
+	if len(c.UpdateTasks) == 0 {
+		c.UpdateTasks = append(c.UpdateTasks, UpdateTaskDefault)
 	}
 
 	if len(c.AuthorizedKeys) == 0 || isFlagSet(AuthorizedKeysFlag) {

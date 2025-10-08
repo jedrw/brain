@@ -14,8 +14,8 @@ import (
 )
 
 var editCmd = &cobra.Command{
-	Use:   "edit",
-	Short: "Edit brainfile",
+	Use:   "edit [path]",
+	Short: "Edit a brainfile",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath := args[0]

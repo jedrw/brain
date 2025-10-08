@@ -17,7 +17,7 @@ import (
 var file string
 
 var newCmd = &cobra.Command{
-	Use:   "new",
+	Use:   "new [path]",
 	Short: "New brainfile",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

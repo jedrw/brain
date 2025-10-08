@@ -43,10 +43,12 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config-path", "c", "", "Path to config file")
-	rootCmd.PersistentFlags().IntVarP(&port, config.PortFlag, "p", config.PortDefault, "Port to listen on")
+	rootCmd.PersistentFlags().IntVarP(&port, config.PortFlag, "p", config.PortDefault, "Port to use to listen/connect")
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(editCmd)
+	rootCmd.AddCommand(moveCmd)
+	rootCmd.AddCommand(deleteCmd)
 	cobra.EnableCommandSorting = false
 }
