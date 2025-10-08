@@ -22,7 +22,7 @@ commands:
             if [ "$CIRCLE_BRANCH" = "develop" ]; then 
               VERSION="0.0.0-beta-$CIRCLE_SHA1"
             else
-              VERSION="${CIRCLE_TAG}"
+              VERSION="${CIRCLE_SHA1}"
             fi
 
             echo $VERSION
@@ -59,6 +59,7 @@ jobs:
       - setup_remote_docker
       - checkout
       - login_to_ghcr
+      - generate_version
       - run:
           name: Build image
           command: docker build -t ghcr.io/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$VERSION .
