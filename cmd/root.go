@@ -33,7 +33,7 @@ var rootCmd = &cobra.Command{
 			return errors.New("set host address with -a flag or configure in config")
 		}
 
-		return nil
+		return cmd.Help()
 	},
 }
 

@@ -3,7 +3,7 @@ package config
 import (
 	"flag"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	KeyPathDefault = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
+	KeyPathDefault = filepath.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
 )
 
 type Config struct {
@@ -90,7 +90,7 @@ func (c *Config) setOverrides(flags *pflag.FlagSet) {
 
 func New(configPath string, flags *pflag.FlagSet) (Config, error) {
 	if configPath == "" {
-		configPath = path.Join(xdg.ConfigHome, "brain", "config.yaml")
+		configPath = filepath.Join(xdg.ConfigHome, "brain", "config.yaml")
 	}
 
 	configBytes, err := os.ReadFile(configPath)

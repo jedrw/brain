@@ -4,7 +4,7 @@ import (
 	"io"
 	"net"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -18,7 +18,7 @@ type sshClient struct {
 
 func publicKeyAuth(keyPath string) (ssh.AuthMethod, error) {
 	if keyPath == "" {
-		keyPath = path.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
+		keyPath = filepath.Join(os.Getenv("HOME"), ".ssh", "id_ed25519")
 	}
 
 	buf, err := os.ReadFile(keyPath)

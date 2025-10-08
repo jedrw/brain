@@ -3,11 +3,11 @@ package editor
 import (
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 )
 
 func New(filePath string, initialContent []byte) ([]byte, string, error) {
-	newFileName := path.Base(filePath)
+	newFileName := filepath.Base(filePath)
 	tempFile, err := os.CreateTemp("", newFileName)
 	if err != nil {
 		return []byte{}, tempFile.Name(), err

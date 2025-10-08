@@ -1,4 +1,4 @@
-package server
+package brain
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/wish/logging"
 )
 
-func NewSSHServer(hostKeyPath string, authorizedKeys []string, sshHandler func(s ssh.Handler) ssh.Handler) (*ssh.Server, error) {
+func newServer(hostKeyPath string, authorizedKeys []string, sshHandler func(s ssh.Handler) ssh.Handler) (*ssh.Server, error) {
 	_, err := os.Stat(hostKeyPath)
 	if err != nil {
 		return nil, err

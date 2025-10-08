@@ -3,14 +3,9 @@ package brain
 import (
 	"bytes"
 	_ "embed"
-	"errors"
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
-	"strings"
 
-	"github.com/charmbracelet/log"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/parser"
 )
@@ -71,49 +66,4 @@ func NewNodeFromFile(filePath string) (Node, error) {
 	}
 
 	return NewNodeFromBytes(fileBytes)
-}
-
-// Make this a Tree method?
-func getNodes(baseDir, currentPath string) ([]*Node, error) {
-	entries, err := os.ReadDir(path.Join(baseDir, currentPath))
-	if err != nil {
-		return nil, err
-	}
-
-	var nodes []*Node
-	for _, entry := range entries {
-		relPath := filepath.Join(currentPath, entry.Name())
-		var node Node
-		if entry.IsDir() {
-			node = Node{
-				Title: strings.TrimSuffix(entry.Name(), ".md"),
-				Path:  relPath,
-				IsDir: entry.IsDir(),
-			}
-
-			children, err := getNodes(baseDir, relPath)
-			if err != nil {
-				return nil, err
-			}
-
-			node.Children = children
-		} else {
-			filePath := path.Join(baseDir, relPath)
-			node, err = NewNodeFromFile(filePath)
-			if err != nil {
-				if errors.Is(err, ErrInvalidBrainNode) {
-					log.Warn("invalid brain node", "path", relPath)
-					continue
-				}
-
-				return nil, err
-			}
-
-			node.Path = relPath
-		}
-
-		nodes = append(nodes, &node)
-	}
-
-	return nodes, nil
 }

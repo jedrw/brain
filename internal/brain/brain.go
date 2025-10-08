@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/ssh"
 	"github.com/cockroachdb/cmux"
 	"github.com/jedrw/brain/internal/config"
-	"github.com/jedrw/brain/internal/server"
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
@@ -61,7 +60,7 @@ func (b *Brain) getTree() error {
 	b.tree.mu.Lock()
 	defer b.tree.mu.Unlock()
 	var err error
-	b.tree.nodes, err = getNodes(b.config.ContentDir, "")
+	b.tree.nodes, err = b.tree.getNodes(b.config.ContentDir, "")
 	if err != nil {
 		return err
 	}
@@ -112,7 +111,7 @@ func (b *Brain) Serve() error {
 
 	log.Info(fmt.Sprintf("opened listener on port: %d", b.config.Port))
 
-	b.sshServer, err = server.NewSSHServer(
+	b.sshServer, err = newServer(
 		b.config.HostKeyPath,
 		b.config.AuthorizedKeys,
 		b.sshHandler,

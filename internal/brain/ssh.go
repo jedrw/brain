@@ -24,12 +24,58 @@ const (
 func listNodes(sb *strings.Builder, nodes []*Node) {
 	for _, node := range nodes {
 		if node.IsDir {
-			fmt.Fprintf(sb, "%s\n", node.Path)
 			listNodes(sb, node.Children)
 		} else {
 			fmt.Fprintf(sb, "%s\n", node.Path)
 		}
 	}
+}
+
+func isEmpty(name string) (bool, error) {
+	fi, err := os.Stat(name)
+	if err != nil {
+		return false, err
+	}
+
+	if !fi.IsDir() {
+		return false, fmt.Errorf("%s is not a directory", name)
+	}
+
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true, nil
+	}
+
+	return false, err
+}
+
+func removeEmptyDirs(dirPath string) error {
+	empty, err := isEmpty(dirPath)
+	if err != nil {
+		return err
+	}
+
+	if empty {
+		err = os.Remove(dirPath)
+		if err != nil {
+			return err
+		}
+
+		parentPath := filepath.Dir(dirPath)
+		if parentPath == dirPath {
+			return nil
+		}
+
+		return removeEmptyDirs(parentPath)
+	}
+
+	return nil
 }
 
 func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
@@ -56,8 +102,8 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 					break
 				}
 
-				newFilePath := path.Join(b.config.ContentDir, relPath)
-				err = os.MkdirAll(path.Dir(newFilePath), 0770)
+				newFilePath := filepath.Join(b.config.ContentDir, relPath)
+				err = os.MkdirAll(filepath.Dir(newFilePath), 0770)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
@@ -95,8 +141,8 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 					break
 				}
 
-				fromPath := path.Join(b.config.ContentDir, fromPathRel)
-				toPath := path.Join(b.config.ContentDir, toPathRel)
+				fromPath := filepath.Join(b.config.ContentDir, fromPathRel)
+				toPath := filepath.Join(b.config.ContentDir, toPathRel)
 
 				_, err := os.Stat(toPath)
 				if err == nil {
@@ -136,12 +182,19 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 					break
 				}
 
+				fromDir := filepath.Dir(fromPath)
+				err = removeEmptyDirs(fromDir)
+				if err != nil {
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
 				b.updater <- struct{}{}
 				wish.Printf(s, "OK: moved %s to %s\n", fromPathRel, toPathRel)
 
 			case DELETE:
 				relPath := filepath.Clean(s.Command()[1])
-				path := path.Join(b.config.ContentDir, relPath)
+				path := filepath.Join(b.config.ContentDir, relPath)
 				err := os.Remove(path)
 				if err != nil {
 					wish.Printf(s, "ERROR: %s\n", err)
