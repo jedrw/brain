@@ -1,0 +1,68 @@
+# Default values for mrrothmanmaths.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+secrets:
+  hostKey: ""
+
+config:
+  port: 2222
+  contentDir: "/brain/docs"
+  hostKeyPath: "/brain/id_ed25519"
+  authorizedKeys: []
+  updateTasks: []
+  mkdocsConfig: ""
+  hostPublicKey: ""
+
+persistence:
+  capacity:
+    storage: 5Gi
+  nfs:
+    server: ""
+    path: ""
+
+image:
+  registry: ghcr.io/jedrw
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  httpPort: 80
+  sshPort: 2222
+
+ingress:
+  http:
+    annotations: {}
+    hosts:
+      - host: ""
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: ""
+        hosts: []
+  ssh:
+    annotations: {}
+
+resources:
+  nginx:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+  brain:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

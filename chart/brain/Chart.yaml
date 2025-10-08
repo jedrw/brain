@@ -1,0 +1,4 @@
+apiVersion: v2
+name: brain
+description: A Helm chart for installing brain
+version: 0.1.0

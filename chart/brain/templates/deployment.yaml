@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "brain.fullname" . }}
+  labels:
+    {{- include "brain.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "brain.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "brain.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}-nginx
+          image: "nginx:alpine"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: site
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources.nginx | nindent 12 }}
+        - name: {{ .Chart.Name }}-brain
+          image: "{{ .Values.image.registry }}/brain:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: ssh
+              containerPort: 2222
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /brain/config.yaml
+              subPath: config.yaml
+            - name: config
+              mountPath: /brain/mkdocs.yaml
+              subPath: mkdocs.yaml
+            - name: hostkeys
+              mountPath: {{ .Values.config.hostKeyPath }}
+              subPath: ssh-privatekey
+            - name: hostkeys
+              mountPath: {{ .Values.config.hostKeyPath }}.pub
+              subPath: ssh-publickey
+            - name: brainfiles
+              mountPath: {{ .Values.config.contentDir }}
+            - name: site
+              mountPath: /brain/site
+          resources:
+            {{- toYaml .Values.resources.brain | nindent 12 }}
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "brain.fullname" . }}-config
+        - name: hostkeys
+          secret:
+            secretName: {{ include "brain.fullname" . }}-hostkeys
+            defaultMode: 0600
+        - name: brainfiles
+          nfs:
+            server: {{ .Values.persistence.nfs.server }}
+            path: {{ .Values.persistence.nfs.path }}
+        - name: site
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.capacity.storage }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

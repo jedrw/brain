@@ -1,0 +1,17 @@
+{
+  "name": "brain",
+  "main": "index.ts",
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^18.19.44",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@jedrw/tk3s-deployment": "^0.0.13",
+    "@pulumi/kubernetes": "^4.17.1",
+    "@pulumi/pulumi": "^3.129.0",
+    "@pulumiverse/doppler": "^0.9.0",
+    "js-yaml": "^4.1.0",
+    "ts-deepmerge": "^7.0.1"
+  }
+}
