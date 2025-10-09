@@ -31,7 +31,7 @@ func listNodes(sb *strings.Builder, nodes []*Node) {
 	}
 }
 
-func isEmpty(name string) (bool, error) {
+func isEmptyDir(name string) (bool, error) {
 	fi, err := os.Stat(name)
 	if err != nil {
 		return false, err
@@ -55,24 +55,29 @@ func isEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func removeEmptyDirs(dirPath string) error {
-	empty, err := isEmpty(dirPath)
+func removeEmptyDirs(baseDir, relPath string) error {
+	if relPath == baseDir {
+		return nil
+	}
+
+	path := filepath.Join(baseDir, relPath)
+	empty, err := isEmptyDir(path)
 	if err != nil {
 		return err
 	}
 
 	if empty {
-		err = os.Remove(dirPath)
+		err = os.Remove(path)
 		if err != nil {
 			return err
 		}
 
-		parentPath := filepath.Dir(dirPath)
-		if parentPath == dirPath {
+		parentPathRel := filepath.Dir(relPath)
+		if parentPathRel == path {
 			return nil
 		}
 
-		return removeEmptyDirs(parentPath)
+		return removeEmptyDirs(baseDir, parentPathRel)
 	}
 
 	return nil
@@ -85,12 +90,14 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 			case NEW:
 				relPath := s.Command()[1]
 				if !strings.HasSuffix(relPath, ".md") {
+					log.Error("brainfile path must end with \".md\"")
 					wish.Println(s, "ERROR: brainfile path must end with \".md\"")
 					break
 				}
 
 				data, err := io.ReadAll(s)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
@@ -98,6 +105,7 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				// Validate the data
 				_, err = NewNodeFromBytes(data)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
@@ -105,38 +113,45 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				newFilePath := filepath.Join(b.config.ContentDir, relPath)
 				err = os.MkdirAll(filepath.Dir(newFilePath), 0770)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				err = os.WriteFile(newFilePath, data, 0644)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				b.updater <- struct{}{}
+				log.Infof("saved %s", relPath)
 				wish.Printf(s, "OK: saved %s\n", relPath)
 
 			case LIST:
 				sb := &strings.Builder{}
 				listNodes(sb, b.tree.nodes)
+				log.Info("listed nodes")
 				wish.Print(s, sb)
 
 			case EDIT:
 				relPath := filepath.Clean(s.Command()[1])
 				node, err := b.tree.Find(relPath)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
+				log.Infof("sent %s for editing", relPath)
 				wish.Print(s, string(node.Raw))
 
 			case MOVE:
 				fromPathRel := filepath.Clean(s.Command()[1])
 				toPathRel := filepath.Clean(s.Command()[2])
 				if fromPathRel == toPathRel {
+					log.Infof("moved %s to %s", fromPathRel, toPathRel)
 					wish.Printf(s, "OK: moved %s to %s\n", fromPathRel, toPathRel)
 					break
 				}
@@ -146,6 +161,7 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 
 				_, err := os.Stat(toPath)
 				if err == nil {
+					log.Errorf("%s already exists, move must be non-destructive", toPathRel)
 					wish.Printf(s, "ERROR: %s already exists, move must be non-destructive\n", toPathRel)
 					b.updater <- struct{}{}
 					break
@@ -159,6 +175,7 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 
 				fromNode, err := b.tree.Find(fromPathRel)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					b.updater <- struct{}{}
 					break
@@ -166,30 +183,35 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 
 				err = os.MkdirAll(path.Dir(toPath), 0770)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				err = os.WriteFile(toPath, fromNode.Raw, 0644)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				err = os.Remove(fromPath)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
-				fromDir := filepath.Dir(fromPath)
-				err = removeEmptyDirs(fromDir)
+				fromDirRel := filepath.Dir(fromPathRel)
+				err = removeEmptyDirs(b.config.ContentDir, fromDirRel)
 				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				b.updater <- struct{}{}
+				log.Infof("moved %s to %s", fromPathRel, toPathRel)
 				wish.Printf(s, "OK: moved %s to %s\n", fromPathRel, toPathRel)
 
 			case DELETE:
@@ -197,11 +219,21 @@ func (b *Brain) sshHandler(next ssh.Handler) ssh.Handler {
 				path := filepath.Join(b.config.ContentDir, relPath)
 				err := os.Remove(path)
 				if err != nil {
+					log.Error(err)
+					wish.Printf(s, "ERROR: %s\n", err)
+					break
+				}
+
+				fromDirRel := filepath.Dir(relPath)
+				err = removeEmptyDirs(b.config.ContentDir, fromDirRel)
+				if err != nil {
+					log.Error(err)
 					wish.Printf(s, "ERROR: %s\n", err)
 					break
 				}
 
 				b.updater <- struct{}{}
+				log.Infof("deleted %s", relPath)
 				wish.Printf(s, "OK: deleted %s\n", relPath)
 			}
 		}
