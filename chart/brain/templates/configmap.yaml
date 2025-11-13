@@ -7,7 +7,10 @@ data:
     port: {{ .Values.config.port }}
     contentDir: {{ .Values.config.contentDir | quote }}
     hostKeyPath: {{ .Values.config.hostKeyPath | quote }}
-    authorizedKeys: {{ .Values.config.authorizedKeys }}
+    {{- with .Values.config.authorizedKeys }}
+    authorizedKeys:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     updateTasks: {{ .Values.config.updateTasks }}
 
   {{- with .Values.config.mkdocsConfig }}
